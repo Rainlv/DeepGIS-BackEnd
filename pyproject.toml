@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "backend"
+version = "0.1.0"
+description = ""
+authors = ["Xuanh.W <Xuanhao.W.coding@outlook.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+fastapi = "^0.72.0"
+uvicorn = "^0.17.0"
+loguru = "^0.5.3"
+fastapi-crudrouter = "^0.8.4"
+alembic = "^1.7.5"
+SQLAlchemy-Utils = "^0.38.2"
+SQLAlchemy = {extras = ["asyncio"], version = "^1.4.31"}
+GeoAlchemy2 = "^0.10.2"
+psycopg2 = "^2.9.3"
+python-dotenv = "^0.19.2"
+gdal = "^3.4.1"
+geoserver-rest = "^2.1.4"
+asyncpg = "^0.25.0"
+fastapi-users = {extras = ["sqlalchemy2"], version = "^9.2.4"}
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
