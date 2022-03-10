@@ -12,6 +12,8 @@ from fastapi_users.db import SQLAlchemyUserDatabase
 from Config import globalConfig
 from exceptions.DatabaseException import DatabaseCreateException
 from exceptions.GeoserverException import CreateWorkspaceException, CreateFeatureStoreException, BaseGeoserverException
+from utils.constant.geo import LayerType
+from utils.geoserver import get_user_store_name
 from views.map.db import create_user_database
 from views.map.geoserver import geoserver
 from views.user.db import get_user_db
@@ -28,8 +30,9 @@ class UserManager(BaseUserManager[UserCreate, UserDB]):
 
     # TODO 优化回滚
     async def on_after_register(self, user: UserDB, request: Optional[Request] = None):
-        raster_db = user.nick_name + "_feature"
-        feature_db = user.nick_name + "_raster"
+        raster_db = get_user_store_name(user.nick_name, layer_type=LayerType.RASTER)
+        feature_db = get_user_store_name(user.nick_name, layer_type=LayerType.FEATURE)
+
         try:
             create_user_database(raster_db)
             create_user_database(feature_db)

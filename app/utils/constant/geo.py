@@ -32,6 +32,20 @@ class WorkspaceType(str, Enum):
     PRIVATE = "private"
     SHARE = "share"
 
+
 class LayerType(str, Enum):
     RASTER = "raster"
     FEATURE = "feature"
+
+
+class StoreType(str, Enum):
+    Private = "private"
+    Public = "public"
+    Share = "share"
+
+
+StoreDBMap = {
+    StoreType.Private: None,
+    StoreType.Public: 'nurc',
+    StoreType.Share: 'share'
+}

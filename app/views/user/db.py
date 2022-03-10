@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, String
-from database.utils.uri import get_db_uri
+from database.utils.conn import get_db_uri
 from views.user.models import UserDB
 
 DATABASE_URL = get_db_uri(db_name='user', is_async=True)

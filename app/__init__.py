@@ -1,9 +1,9 @@
-import os
+import os.path
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 sys.path.append((os.path.dirname(__file__)))
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from Config import globalConfig
@@ -31,10 +31,10 @@ app.include_router(user_router)
 @app.on_event('startup')
 async def _():
     log_init()
+    os.makedirs(globalConfig.TMP_DIR, exist_ok=True)
     await create_db_and_tables()
 
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run(app='app:app', host="0.0.0.0", port=globalConfig.port, reload=True, debug=globalConfig.DEBUG)

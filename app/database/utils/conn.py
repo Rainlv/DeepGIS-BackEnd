@@ -22,6 +22,7 @@ def get_db_uri(db_name: str, is_async: bool = False) -> str:
     passwd = globalConfig.postgis_db_passwd
     return f"postgresql://{user}:{passwd}@{host}:{port}/{db_name}" if not is_async else f"postgresql+asyncpg://{user}:{passwd}@{host}:{port}/{db_name}"
 
+# engine =
 
 if __name__ == "__main__":
     pass

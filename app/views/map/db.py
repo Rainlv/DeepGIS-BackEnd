@@ -1,16 +1,25 @@
+from io import BytesIO
 from typing import List
 
-from sqlalchemy import MetaData, Table, Column, Integer, create_engine
+from geopandas import GeoDataFrame
+from sqlalchemy import MetaData, Table, Column, Integer, create_engine, text, bindparam
 from geoalchemy2 import Geometry
-from sqlalchemy_utils.functions import database_exists, create_database, drop_database
+from sqlalchemy_utils.functions import database_exists, create_database
+import aiofiles
 
-from utils.constant.geo import GeoType
-from database.utils.uri import get_db_uri
+from Config import globalConfig, rootDir
+from utils.constant.geo import GeoType, LayerType
+from database.utils.conn import get_db_uri
 from exceptions.DatabaseException import TableCreateException, DatabaseCreateException
 from loguru import logger
-
+import geopandas as gpd
+from pathlib import Path
 
 # TODO 异步重写
+from utils.geoserver import get_user_store_name, get_raster_path
+from views.map.geoserver import geoserver
+
+
 def create_geo_table(db_name, table_name, geo_type: GeoType, fields: List[Column] = []):
     db_uri = get_db_uri(db_name)
     engine = create_engine(db_uri)
@@ -48,6 +57,84 @@ def create_user_database(db_name):
         raise DatabaseCreateException(f"数据库{db_name}已存在！")
 
 
+def upload2postGIS(file, filename, db_name, isZip: bool = False, **kwargs):
+    feature_file = gpd.read_file(file)
+    # 将 几何信息的列 重命名为 the_gemo 与Geoserver相同，方便读取
+    feature_file.rename_geometry('the_geom', inplace=True)
+    db_uri = get_db_uri(db_name)
+    engine = create_engine(db_uri)
+    # TODO 异常捕获
+    filename_without_suffix = Path(filename).with_suffix('')
+    feature_file.to_postgis(str(filename_without_suffix), con=engine, **kwargs)
+    geoserver.pub_feature(feature_table_name=filename_without_suffix, feature_store=db_name, ws=db_name)
+
+
+# TODO 分块读取优化
+def download_from_postGIS(table_name: str, db_name: str, out_file_type: str = None, **kwargs) -> BytesIO:
+    """
+    读取数据库中的矢量，返回二进制流
+    :param table_name: 表名
+    :param db_name: 数据库名
+    :param out_file_type: 输出文件类型，默认为shp，否则应为OGR format driver，参考 https://gdal.org/drivers/vector/index.html
+    :return: 矢量的二进制流对象
+    """
+    db_uri = get_db_uri(db_name)
+    engine = create_engine(db_uri)
+    feature_df = gpd.read_postgis(table_name, geom_col='the_geom', con=engine, **kwargs)
+    byte_stream = BytesIO()
+    feature_df.to_file(byte_stream, driver=out_file_type)
+    byte_stream.seek(0)
+    return byte_stream
+
+
+def _zip_shpFiles(feature_df: GeoDataFrame):
+    pass
+
+
+# FIXME SQL注入问题
+def delete_feature_asset(table_name: str, db_name: str):
+    # sql = text('DROP TABLE IF EXISTS :table_name')
+    sql = text(f'DROP TABLE IF EXISTS {table_name}')
+    db_uri = get_db_uri(db_name)
+    engine = create_engine(db_uri)
+    # result = engine.execute(sql, table_name=table_name)
+    result = engine.execute(sql)
+    geoserver.delete_layer(table_name, ws=db_name)
+
+
+class RasterPostGIS:
+    def __init__(self, user_name):
+        self.user_name = user_name
+        self.store_name = get_user_store_name(user_name, layer_type=LayerType.RASTER)
+        db_uri = get_db_uri(self.store_name)
+        self.engine = create_engine(db_uri)
+        self.user_assets_path = get_raster_path(self.user_name)
+        self.user_assets_path.mkdir(parents=True, exist_ok=True)
+
+    async def do_upload(self, filename, file_content):
+        save_path = await self._save2file(filename, file_content)
+        # self._publish2geoserver(save_path)
+
+    def do_download(self):
+        pass
+
+    async def _save2file(self, filename: str, file_content: bytes):
+        save_file_path = self.user_assets_path.joinpath(filename)
+        async with aiofiles.open(save_file_path, mode='wb') as f:
+            await f.write(file_content)
+        # with open(save_file_path, mode='wb') as f:
+        #     f.write(file_content)
+        return save_file_path
+
+    def _upload2db(self):
+        pass
+
+    def _publish2geoserver(self, raster_path):
+        geoserver.pub_raster(path=raster_path, ws=self.store_name)
+
+
 if __name__ == "__main__":
-    create_user_database("test_user")
-    # create_geo_table("test_db2", "test_shp1", GeoType.POINT)
+    with open('example.geojson', 'rb') as r:
+        upload2postGIS(r, 'test_upload_bytes', 'test_user')
+    # with open('t', 'wb') as w:
+    # download_from_postGIS(table_name="test_upload_hsg", db_name='test_user', out_file_type='ESRI Shapefile')

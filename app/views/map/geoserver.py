@@ -6,10 +6,14 @@
  @Author    :Xuanh.W
  @Usage     :
 """
+from typing import List, Optional
+
+import httpx
 from geo.Geoserver import Geoserver
+from httpx import Response
+
 from Config import globalConfig
-from exceptions.GeoserverException import CreateFeatureStoreException, PublishFeatureException, \
-    CreateWorkspaceException, GetFeatureInfoException, DeleteWorkspaceException, DeleteFeatureStoreException
+from exceptions.GeoserverException import *
 from utils.Singleton import Singleton
 from loguru import logger
 
@@ -19,6 +23,9 @@ class GeoServerClass(metaclass=Singleton):
         self.geo = Geoserver(service_url=globalConfig.geoserver_url,
                              username=globalConfig.geoserver_user,
                              password=globalConfig.geoserver_passwd)
+        self.base_url = f"{globalConfig.geoserver_url}/rest"
+        self.client = httpx.AsyncClient(headers={'Accept': "application/json"},
+                                        auth=(globalConfig.geoserver_user, globalConfig.geoserver_passwd))
 
     def create_workspace(self, ws: str):
         try:
@@ -48,31 +55,88 @@ class GeoServerClass(metaclass=Singleton):
             raise CreateFeatureStoreException(f"创建数据源{ws}:{feature_store}失败！" + str(exc_info))
         logger.info(f'{ws}:{feature_store}数据源创建成功')
 
-    def pub_feature(self, feature_name: str, feature_store: str, ws: str):
+    def pub_feature(self, feature_table_name: str, feature_store: str, ws: str):
         exc_info = self.geo.publish_featurestore(workspace=ws, store_name=feature_store,
-                                                 pg_table=feature_name)
+                                                 pg_table=feature_table_name)
         if exc_info:
-            raise PublishFeatureException(f"发布矢量{ws}:{feature_store}:{feature_name}失败！" + exc_info)
-        logger.info(f'{ws}:{feature_store}:{feature_name}矢量发布成功!')
+            raise PublishFeatureException(f"发布矢量{ws}:{feature_store}:{feature_table_name}失败！" + exc_info)
+        logger.info(f'{ws}:{feature_store}:{feature_table_name}矢量发布成功!')
 
-    def get_ws_features(self, ws: str):
+    def pub_raster(self, path: str, ws: str, **kwargs):
+        exc_info = self.geo.create_coveragestore(path, workspace=ws, **kwargs)
+        if exc_info.startswith("Error: "):
+            logger.error(f"发布{ws}:{path}栅格数据失败！错误信息：{exc_info}")
+            raise PublishRasterException(exc_info)
+        logger.info(f"发布{ws}:{path}栅格数据成功")
+
+    def get_ws_layers(self, ws: str) -> List:
+        """
+        获取工作空间下的所有图层
+        :param ws:
+        :return:
+        """
         exc_info = self.geo.get_layers(workspace=ws)
+        print(exc_info)
         if isinstance(exc_info, str):
-            raise GetFeatureInfoException(exc_info)
+            raise GetInfoException(exc_info)
         if exc_info['layers'] == '':
             return []
         layer_ls = [d['name'] for d in exc_info['layers']['layer']]
         return layer_ls
 
-    def delete_workspace(self, ws: str):
+    def get_store_features(self, ws: str, store: str) -> List:
+        """
+        获取一个数据源下的所有矢量图层
+        :param ws:
+        :param store:
+        :return:
+        """
+        return self.geo.get_featuretypes(workspace=ws, store_name=store)
+
+    def get_ws_raster_stores(self, ws: str) -> List:
+        """
+        获取工作空间下所有的栅格数据源
+        :param ws:
+        :return:
+        """
+        exc_info = self.geo.get_coveragestores(workspace=ws)
+        if isinstance(exc_info, dict):
+            return exc_info
+        if exc_info.startswith("Error: "):
+            logger.error(f"无法获取{ws}的栅格数据源！错误：{exc_info}")
+            raise GetInfoException(exc_info)
+
+    async def get_ws_rasters(self, ws: str):
+        """
+        获取工作空间下的所有栅格图层
+        :param ws:
+        :return:
+        """
+        url = f"{self.base_url}/workspaces/{ws}/coverages"
         try:
-            exc_info = self.geo.delete_workspace(ws)
-            if exc_info.startswith("Error: "):
-                raise Exception(exc_info)
-            logger.info(f"删除{ws}工作区成功")
+            r: Response = await self.client.get(url, auth=(globalConfig.geoserver_user, globalConfig.geoserver_passwd))
+            return r.json()
         except Exception as e:
-            logger.error(f"删除{ws}工作区失败！错误：{e}")
-            raise DeleteWorkspaceException(str(e))
+            raise GetInfoException(f"获取{ws}栅格图层失败!错误：{e}")
+
+    async def get_ws_features(self, ws: str):
+        """
+        获取工作空间下的所有矢量图层
+        :param ws:
+        :return:
+        """
+        url = f"{self.base_url}/workspaces/{ws}/featuretypes"
+        try:
+            r: Response = await self.client.get(url, auth=(globalConfig.geoserver_user, globalConfig.geoserver_passwd))
+            return r.json()
+        except Exception as e:
+            raise GetInfoException(f"获取{ws}矢量图层失败!错误：{e}")
+
+    def delete_workspace(self, ws: str):
+        exc_info = self.geo.delete_workspace(ws)
+        if exc_info.startswith("Error: "):
+            logger.error(f"删除{ws}工作区失败！错误：{exc_info}")
+            raise DeleteWorkspaceException(exc_info)
 
     def delete_featurestore(self, feature_store: str, ws: str):
         try:
@@ -83,8 +147,20 @@ class GeoServerClass(metaclass=Singleton):
             logger.error(f"删除{ws}工作区的{feature_store}数据源失败！错误：{e}")
             raise DeleteFeatureStoreException(str(e))
 
+    def delete_layer(self, layer_name: str, ws: str):
+        try:
+            exc_info = self.geo.delete_layer(layer_name=layer_name, workspace=ws)
+            if exc_info.startswith("Error: "):
+                raise Exception(exc_info)
+        except Exception as e:
+            logger.error(f"删除{ws}工作区的{layer_name}图层失败！错误：{e}")
+            raise DeleteLayerException(str(e))
+
 
 geoserver = GeoServerClass()
 if __name__ == '__main__':
-    user_name = "cite1_feature"
-    geoserver.delete_workspace(user_name)
+    import asyncio
+
+    # user_name = "cite1_feature"
+    # geoserver.delete_workspace(user_name)
+    print(asyncio.run(geoserver.get_ws_rasters('nurc')))

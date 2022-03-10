@@ -6,10 +6,11 @@
  @Author    :Xuanh.W
  @Usage     :
 """
-from pydantic import BaseSettings, IPvAnyAddress
+from pydantic import BaseSettings, IPvAnyAddress, AnyUrl
 from dotenv import find_dotenv
 from ipaddress import IPv4Address
 from pydantic import AnyHttpUrl
+from pathlib import Path
 
 
 class Env(BaseSettings):
@@ -44,8 +45,16 @@ class Config(BaseSettings):
     # postgis数据库密码
     geoserver_passwd: str
 
+    DOCKER_BASE_URL: AnyUrl
+    DOCKER_CODE_SERVER_DIR: str
+
     # 用户密码加密盐
     USER_PASSWD_SECRET: str
+
+    # 临时文件
+    TMP_DIR: str
+    # 用户资源文件夹
+    ASSETS_DIR: str
 
     class Config:
         extra = "allow"
@@ -54,3 +63,4 @@ class Config(BaseSettings):
 
 env = Env()
 globalConfig = Config(_env_file=find_dotenv(f".env.{env.environment}"))
+rootDir = Path(__file__).resolve().parents[1]

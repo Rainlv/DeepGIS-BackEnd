@@ -10,16 +10,25 @@ class PublishFeatureException(BaseGeoserverException):
     pass
 
 
+class PublishRasterException(BaseGeoserverException):
+    pass
+
+
 class CreateWorkspaceException(BaseGeoserverException):
     pass
 
 
-class GetFeatureInfoException(BaseGeoserverException):
+class GetInfoException(BaseGeoserverException):
     pass
 
 
 class DeleteWorkspaceException(BaseGeoserverException):
     pass
 
+
 class DeleteFeatureStoreException(BaseGeoserverException):
+    pass
+
+
+class DeleteLayerException(BaseGeoserverException):
     pass
