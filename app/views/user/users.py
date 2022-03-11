@@ -13,7 +13,7 @@ from Config import globalConfig
 from exceptions.DatabaseException import DatabaseCreateException
 from exceptions.GeoserverException import CreateWorkspaceException, CreateFeatureStoreException, BaseGeoserverException
 from utils.constant.geo import LayerType
-from utils.geoserver import get_user_store_name
+from utils.geoserver import UserStoreInfo
 from views.map.db import create_user_database
 from views.map.geoserver import geoserver
 from views.user.db import get_user_db
@@ -30,16 +30,19 @@ class UserManager(BaseUserManager[UserCreate, UserDB]):
 
     # TODO 优化回滚
     async def on_after_register(self, user: UserDB, request: Optional[Request] = None):
-        raster_db = get_user_store_name(user.nick_name, layer_type=LayerType.RASTER)
-        feature_db = get_user_store_name(user.nick_name, layer_type=LayerType.FEATURE)
-
+        # raster_db = get_user_ws_name(user.nick_name, layer_type=LayerType.RASTER)
+        # feature_db = get_user_ws_name(user.nick_name, layer_type=LayerType.FEATURE)
+        store_info = UserStoreInfo(user.nick_name)
+        db_name = store_info.get_db_name()
+        ws_name = store_info.get_ws_name()
+        feature_store_name = store_info.get_feature_store_name()
         try:
-            create_user_database(raster_db)
-            create_user_database(feature_db)
-            geoserver.create_workspace(raster_db)
-            geoserver.create_workspace(feature_db)
-            geoserver.create_feature_store(raster_db, raster_db)
-            geoserver.create_feature_store(feature_db, feature_db)
+            create_user_database(db_name)
+            # create_user_database(feature_db)
+            geoserver.create_workspace(ws_name)
+            # geoserver.create_workspace(feature_db)
+            geoserver.create_feature_store(feature_store_name, ws=ws_name)
+            # geoserver.create_feature_store(feature_db, feature_db)
             logger.info(f"User {user.id} has registered.")
 
         except DatabaseCreateException:
@@ -48,10 +51,10 @@ class UserManager(BaseUserManager[UserCreate, UserDB]):
         except BaseGeoserverException:
             try:
                 await self.delete(user)
-                geoserver.delete_workspace(raster_db)
-                geoserver.delete_workspace(feature_db)
-                geoserver.delete_featurestore(raster_db, raster_db)
-                geoserver.delete_featurestore(feature_db, feature_db)
+                geoserver.delete_workspace(ws_name)
+                # geoserver.delete_workspace(feature_db)
+                geoserver.delete_featurestore(feature_store_name, ws_name)
+                # geoserver.delete_featurestore(feature_db, feature_db)
             except:
                 pass
             raise

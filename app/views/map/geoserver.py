@@ -55,12 +55,12 @@ class GeoServerClass(metaclass=Singleton):
             raise CreateFeatureStoreException(f"创建数据源{ws}:{feature_store}失败！" + str(exc_info))
         logger.info(f'{ws}:{feature_store}数据源创建成功')
 
-    def pub_feature(self, feature_table_name: str, feature_store: str, ws: str):
-        exc_info = self.geo.publish_featurestore(workspace=ws, store_name=feature_store,
-                                                 pg_table=feature_table_name)
+    def pub_feature(self, store_name: str, pg_table: str, ws: str):
+        exc_info = self.geo.publish_featurestore(workspace=ws, store_name=store_name,
+                                                 pg_table=pg_table)
         if exc_info:
-            raise PublishFeatureException(f"发布矢量{ws}:{feature_store}:{feature_table_name}失败！" + exc_info)
-        logger.info(f'{ws}:{feature_store}:{feature_table_name}矢量发布成功!')
+            raise PublishFeatureException(f"发布矢量{ws}:{pg_table}:{store_name}失败！" + exc_info)
+        logger.info(f'{ws}:{store_name}:{pg_table}矢量发布成功!')
 
     def pub_raster(self, path: str, ws: str, **kwargs):
         exc_info = self.geo.create_coveragestore(path, workspace=ws, **kwargs)
@@ -115,7 +115,11 @@ class GeoServerClass(metaclass=Singleton):
         url = f"{self.base_url}/workspaces/{ws}/coverages"
         try:
             r: Response = await self.client.get(url, auth=(globalConfig.geoserver_user, globalConfig.geoserver_passwd))
-            return r.json()
+            rasters_infos = r.json()['coverages']
+            if not rasters_infos:
+                return []
+            raster_list = [raster_info['name'] for raster_info in rasters_infos['coverage']]
+            return raster_list
         except Exception as e:
             raise GetInfoException(f"获取{ws}栅格图层失败!错误：{e}")
 
@@ -128,7 +132,11 @@ class GeoServerClass(metaclass=Singleton):
         url = f"{self.base_url}/workspaces/{ws}/featuretypes"
         try:
             r: Response = await self.client.get(url, auth=(globalConfig.geoserver_user, globalConfig.geoserver_passwd))
-            return r.json()
+            features_infos = r.json()['featureTypes']
+            if not features_infos:
+                return []
+            features_list = [feature_info['name'] for feature_info in features_infos['featureType']]
+            return features_list
         except Exception as e:
             raise GetInfoException(f"获取{ws}矢量图层失败!错误：{e}")
 
@@ -160,7 +168,6 @@ class GeoServerClass(metaclass=Singleton):
 geoserver = GeoServerClass()
 if __name__ == '__main__':
     import asyncio
-
     # user_name = "cite1_feature"
     # geoserver.delete_workspace(user_name)
-    print(asyncio.run(geoserver.get_ws_rasters('nurc')))
+    print(asyncio.run(geoserver.get_ws_rasters('foo')))

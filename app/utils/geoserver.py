@@ -8,13 +8,35 @@
 """
 from pathlib import Path
 
-from utils.constant.geo import LayerType
 from Config import rootDir, globalConfig
 
 
-def get_user_store_name(layer_name: str, layer_type: LayerType):
-    ws_suffix_spliter = "_"
-    return layer_name + ws_suffix_spliter + layer_type
+class UserStoreInfo:
+    """用户地理数据存储信息"""
+
+    def __init__(self, user_name):
+        self._user_name = user_name
+
+    def get_ws_name(self):
+        """
+        返回该用户的工作空间名称
+        :return:
+        """
+        return self._user_name
+
+    def get_feature_store_name(self):
+        """
+        返回该用户的工作空间下的POSTGIS矢量数据源名称
+        :return:
+        """
+        return self._user_name
+
+    def get_db_name(self) -> str:
+        """
+        返回用户数据库名称
+        :return:
+        """
+        return self._user_name
 
 
 def get_raster_path(user_name):

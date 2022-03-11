@@ -1,4 +1,4 @@
-.env*
+.env.*.local
 logs/
 poetry.lock
 .idea
@@ -200,7 +200,6 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
 .venv
 env/
 venv/

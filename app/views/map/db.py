@@ -16,7 +16,7 @@ import geopandas as gpd
 from pathlib import Path
 
 # TODO 异步重写
-from utils.geoserver import get_user_store_name, get_raster_path
+from utils.geoserver import get_raster_path, UserStoreInfo
 from views.map.geoserver import geoserver
 
 
@@ -57,16 +57,18 @@ def create_user_database(db_name):
         raise DatabaseCreateException(f"数据库{db_name}已存在！")
 
 
-def upload2postGIS(file, filename, db_name, isZip: bool = False, **kwargs):
+def upload2postGIS(file, filename, user_name: str, isZip: bool = False, **kwargs):
     feature_file = gpd.read_file(file)
     # 将 几何信息的列 重命名为 the_gemo 与Geoserver相同，方便读取
     feature_file.rename_geometry('the_geom', inplace=True)
-    db_uri = get_db_uri(db_name)
+    store_info = UserStoreInfo(user_name)
+    db_uri = get_db_uri(store_info.get_db_name())
     engine = create_engine(db_uri)
     # TODO 异常捕获
     filename_without_suffix = Path(filename).with_suffix('')
     feature_file.to_postgis(str(filename_without_suffix), con=engine, **kwargs)
-    geoserver.pub_feature(feature_table_name=filename_without_suffix, feature_store=db_name, ws=db_name)
+    geoserver.pub_feature(store_name=store_info.get_feature_store_name(), pg_table=filename_without_suffix,
+                          ws=store_info.get_ws_name())
 
 
 # TODO 分块读取优化
@@ -105,8 +107,9 @@ def delete_feature_asset(table_name: str, db_name: str):
 class RasterPostGIS:
     def __init__(self, user_name):
         self.user_name = user_name
-        self.store_name = get_user_store_name(user_name, layer_type=LayerType.RASTER)
-        db_uri = get_db_uri(self.store_name)
+        self.store_info = UserStoreInfo(user_name)
+        # self.store_name = get_user_ws_name(user_name, layer_type=LayerType.RASTER)
+        db_uri = get_db_uri(db_name=self.store_info.get_db_name())
         self.engine = create_engine(db_uri)
         self.user_assets_path = get_raster_path(self.user_name)
         self.user_assets_path.mkdir(parents=True, exist_ok=True)
@@ -130,7 +133,7 @@ class RasterPostGIS:
         pass
 
     def _publish2geoserver(self, raster_path):
-        geoserver.pub_raster(path=raster_path, ws=self.store_name)
+        geoserver.pub_raster(path=raster_path, ws=self.store_info.get_ws_name())
 
 
 if __name__ == "__main__":

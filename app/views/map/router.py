@@ -6,7 +6,7 @@ from starlette.responses import FileResponse
 from Schemas.Geoserver import CreateTable
 from Schemas.Response import BaseResponse
 from utils.constant.geo import LayerType, StoreType
-from utils.geoserver import get_user_store_name, get_raster_path
+from utils.geoserver import get_raster_path, UserStoreInfo
 from views.map.db import create_geo_table, upload2postGIS, download_from_postGIS, delete_feature_asset, RasterPostGIS
 from sqlalchemy import Column
 import sqlalchemy
@@ -21,6 +21,7 @@ router = APIRouter(tags=['geoserver'], prefix="/geoserver")
 @router.post("/create_table")
 async def _(param: CreateTable, user: User = Depends(current_user())):
     user_name = user.nick_name
+    store_info = UserStoreInfo(user_name)
     table_name = param.layer_name
     geo_type = param.geo_type
     fields_list = param.fields
@@ -31,8 +32,9 @@ async def _(param: CreateTable, user: User = Depends(current_user())):
         field_type = getattr(sqlalchemy, field_type_str)
         field_col = Column(field_name, field_type)
         field_cols.append(field_col)
-    create_geo_table(db_name=user_name, table_name=table_name, geo_type=geo_type, fields=field_cols)
-    geoserver_instance.pub_feature(feature_table_name=table_name, feature_store=user_name, ws=user_name)
+    create_geo_table(db_name=store_info.get_db_name(), table_name=table_name, geo_type=geo_type, fields=field_cols)
+    geoserver_instance.pub_feature(store_name=store_info.get_feature_store_name(), pg_table=table_name,
+                                   ws=store_info.get_ws_name())
     return BaseResponse(
         code=0,
         message=""
@@ -42,16 +44,18 @@ async def _(param: CreateTable, user: User = Depends(current_user())):
 @router.get("/get_user_features")
 async def _(user: User = Depends(current_user())):
     user_name = user.nick_name
-    user_feature = get_user_store_name(user_name, layer_type=LayerType.FEATURE)
-    user_raster = get_user_store_name(user_name, layer_type=LayerType.RASTER)
+    store_info = UserStoreInfo(user_name)
+    user_ws = store_info.get_ws_name()
+    # user_feature = get_user_ws_name(user_name, layer_type=LayerType.FEATURE)
+    # user_raster = get_user_ws_name(user_name, layer_type=LayerType.RASTER)
     public_raster = 'nurc'
     public_feature = 'tiger'
-    user_feature_result = geoserver_instance.get_ws_layers(user_feature)
-    public_feature_result = geoserver_instance.get_ws_layers(public_feature)
-    share_feature_result = geoserver_instance.get_ws_layers('share')
-    user_raster_result = geoserver_instance.get_ws_layers(user_raster)
-    public_raster_result = geoserver_instance.get_ws_layers(public_raster)
-    share_raster_result = geoserver_instance.get_ws_layers('share')
+    user_feature_result = await geoserver_instance.get_ws_features(ws=user_ws)
+    user_raster_result = await geoserver_instance.get_ws_rasters(ws=user_ws)
+    public_feature_result = await geoserver_instance.get_ws_features(ws=public_feature)
+    public_raster_result = await geoserver_instance.get_ws_rasters(ws=public_raster)
+    share_feature_result = await geoserver_instance.get_ws_features(ws='share')
+    share_raster_result = await geoserver_instance.get_ws_rasters(ws='share')
     return BaseResponse(
         code=0,
         message='',
@@ -61,13 +65,13 @@ async def _(user: User = Depends(current_user())):
                  {
                      "id": "user_feature", "label": "矢量数据",
                      "children": [
-                         {"id": f"{user_feature}:{feature_name}", "label": feature_name, "type": "feature"}
+                         {"id": f"{user_ws}:{feature_name}", "label": feature_name, "type": "feature"}
                          for feature_name in user_feature_result]
                  },
                  {
                      "id": "user_raster", "label": "栅格数据",
                      "children": [
-                         {"id": f"{user_raster}:{raster_name}", "label": raster_name, "type": "raster"}
+                         {"id": f"{user_ws}:{raster_name}", "label": raster_name, "type": "raster"}
                          for raster_name in user_raster_result]},
              ]},
             {"id": "public", "label": "公共资源",
@@ -104,8 +108,7 @@ async def _(user: User = Depends(current_user())):
 
 @router.post('/upload_shp')
 async def _(file: UploadFile = File(...), user: User = Depends(current_user())):
-    db_name = get_user_store_name(user.nick_name, layer_type=LayerType.FEATURE)
-    upload2postGIS(file.file, filename=file.filename, db_name=db_name)
+    upload2postGIS(file.file, filename=file.filename, user_name=user.nick_name)
     return BaseResponse(
         code=0,
         message='',
@@ -116,7 +119,7 @@ async def _(file: UploadFile = File(...), user: User = Depends(current_user())):
 @router.get('/download_features')
 async def _(feature_name: str, store_type: StoreType = StoreType.Private,
             user: User = Depends(current_user())):
-    db_name = get_user_store_name(user.nick_name, layer_type=LayerType.FEATURE)
+    db_name = UserStoreInfo(user.nick_name).get_db_name()
     content = download_from_postGIS(feature_name, db_name=db_name, out_file_type='GeoJSON')
     headers = {"Access-Control-Expose-Headers": "content-disposition",
                'content-disposition': f'attachment;filename={feature_name}.geojson',
@@ -126,7 +129,7 @@ async def _(feature_name: str, store_type: StoreType = StoreType.Private,
 
 @router.delete('/delete_asset')
 async def _(layer_name, layer_type: LayerType, user: User = Depends(current_user())):
-    db_name = get_user_store_name(user.nick_name, layer_type=LayerType.FEATURE)
+    db_name = UserStoreInfo(user.nick_name).get_db_name()
     delete_feature_asset(layer_name, db_name)
     return BaseResponse(code=0, message='')
 
