@@ -1,33 +1,25 @@
 from pathlib import Path
-from typing import Dict, List
 
 import docker
+from docker.errors import NotFound
 from docker.models.containers import Container
 
-from Config import globalConfig, rootDir
+from Config import globalConfig
 
-# tls_config = docker.tls.TLSConfig(client_cert=(rootDir.joinpath('keys/cert.pem'), rootDir.joinpath('keys/key.pem')),
-#                                   ca_cert=rootDir.joinpath('keys/ca.pem'), verify=True)
-# client = docker.DockerClient(base_url=globalConfig.DOCKER_BASE_URL, version='auto',
-#                              tls=tls_config)
+from exceptions.DockerException import NotRunning
+from utils.Singleton import Singleton
+
 
 network_name = "gis301_default"
 container_name_prefix = "code-server_"
 
 
-class CodeServerDocker:
+class CodeServerDocker(metaclass=Singleton):
     def __init__(self):
-        tls_config = docker.tls.TLSConfig(
-            client_cert=(rootDir.joinpath('keys/cert.pem'), rootDir.joinpath('keys/key.pem')),
-            ca_cert=rootDir.joinpath('keys/ca.pem'), verify=True)
-        self.client = docker.DockerClient(base_url=globalConfig.DOCKER_BASE_URL, version='auto',
-                                          tls=tls_config)
+        self.client = docker.DockerClient(base_url=globalConfig.DOCKER_BASE_URL, version='auto')
 
     def create_code_server(self, user_name: str):
-        if not globalConfig.DEBUG:
-            code_server_volumes_dir = str(Path(globalConfig.DOCKER_CODE_SERVER_DIR).joinpath(user_name))
-        else:
-            code_server_volumes_dir = globalConfig.DOCKER_CODE_SERVER_DIR + user_name
+        code_server_volumes_dir = Path(globalConfig.DOCKER_CODE_SERVER_DIR).joinpath(user_name)
         code_server_passwd = "wxh172706002"
         return self.client.containers.run('codercom/code-server',
                                           detach=True,
@@ -38,32 +30,61 @@ class CodeServerDocker:
                                                                         'mode': 'rw'}, },
                                           environment={'PASSWORD': code_server_passwd},
                                           ports={'8080/tcp': None},
+                                          # ports={'8080/tcp': '7122/tcp'},
                                           # restart_policy={"Name": "always", "MaximumRetryCount": 5},
                                           user='root')
 
-    def get_code_server_url(self, user_name: str):
+    def _get_container(self, user_name: str):
         container_name = f"{container_name_prefix}{user_name}"
-        container = self.client.containers.get(container_name)
-        container_port_list = self._get_container_host_port(container)
-        port = self._get_port_from_portList(container_port_list)
-        return
+        return self.client.containers.get(container_name)
 
-    def _get_container_host_port(self, container: Container) -> List[Dict[str, str]]:
+    def get_code_server_url(self, user_name: str):
+        container = self._get_container(user_name)
+        if container.status != "running":
+            raise NotRunning("")
+        port = self._get_container_host_port(container)
+        return self._join_url(port)
+
+    def get_or_create_container_url(self, user_name: str) -> str:
+        """
+        基于用户名获取container的访问地址，如果不存在容器，则创建并返回
+        :param user_name:
+        :return:
+        """
+        try:
+            url = self.get_code_server_url(user_name=user_name)
+        except NotRunning:
+            container = self._get_container(user_name)
+            container.start()
+            url = self.get_code_server_url(user_name=user_name)
+        except NotFound:
+            container = self.create_code_server(user_name=user_name)
+            port = self._get_container_host_port(container)
+            url = self._join_url(port)
+        return url
+
+    @staticmethod
+    def _join_url(port, host=globalConfig.server_host):
+        """
+        返回url和端口号拼接后的结果
+        :param port:
+        :return:
+        """
+        return "http://" + host + ":" + str(port)
+
+    def _get_container_host_port(self, container: Container) -> int:
         """
         根据container获取其8080端口的宿主机映射端口
         :param container: 容器对象
         :return: [{"HostIp":"0.0.0.0","HostPort":port},...]
         """
         container_id_s = container.short_id
-        return self.client.api.port(container_id_s, 8080)
-
-    @staticmethod
-    def _get_port_from_portList(port_list: List[Dict[str, str]]) -> str:
+        port_list = self.client.api.port(container_id_s, 8080)
         return port_list[0]['HostPort']
 
 
+codeServerDocker = CodeServerDocker()
 if __name__ == '__main__':
-    # docker_instance = CodeServerDocker()
-    # container = docker_instance.create_code_server('test')
-    # docker_instance.get_code_server_url(container)
-    pass
+    container_url = codeServerDocker.get_or_create_container_url('test')
+    print(container_url)
+    # pass

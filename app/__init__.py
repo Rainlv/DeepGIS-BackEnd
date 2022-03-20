@@ -12,6 +12,7 @@ from extensions.logger import log_init
 from exceptions.DatabaseException import TableCreateException, table_create_exception_handler
 from views.map.router import router as geoserver_router
 from views.user.router import router as user_router
+# from views.code_server.router import router as coder_router
 
 app = FastAPI()
 app.add_middleware(
@@ -26,6 +27,7 @@ app.add_exception_handler(TableCreateException, table_create_exception_handler)
 
 app.include_router(geoserver_router, prefix='/api')
 app.include_router(user_router)
+# app.include_router(coder_router, prefix='/api')
 
 
 @app.on_event('startup')
@@ -37,4 +39,5 @@ async def _():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app='app:app', host="0.0.0.0", port=globalConfig.port, reload=True, debug=globalConfig.DEBUG)

@@ -16,7 +16,7 @@ import geopandas as gpd
 from pathlib import Path
 
 # TODO 异步重写
-from utils.geoserver import get_raster_path, UserStoreInfo
+from utils.geoserver import get_user_raster_path, UserStoreInfo
 from views.map.geoserver import geoserver
 
 
@@ -111,7 +111,7 @@ class RasterPostGIS:
         # self.store_name = get_user_ws_name(user_name, layer_type=LayerType.RASTER)
         db_uri = get_db_uri(db_name=self.store_info.get_db_name())
         self.engine = create_engine(db_uri)
-        self.user_assets_path = get_raster_path(self.user_name)
+        self.user_assets_path = get_user_raster_path(self.user_name)
         self.user_assets_path.mkdir(parents=True, exist_ok=True)
 
     async def do_upload(self, filename, file_content):

@@ -29,6 +29,8 @@ class Config(BaseSettings):
     # 程序运行端口
     port: int = 8010
 
+    # 服务器域名/IP
+    server_host: str
     # postgis数据库地址
     postgis_db_host: IPvAnyAddress = IPv4Address("127.0.0.1")  # type: ignore
     # postgis数据库端口号

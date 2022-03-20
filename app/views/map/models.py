@@ -1,6 +1,6 @@
 from typing import List
 from pydantic import BaseModel
-from utils.Constant.geo import GeoType, FieldType
+from utils.constant.geo import GeoType, FieldType
 from sqlalchemy import Column, Integer
 from geoalchemy2 import Geometry
 

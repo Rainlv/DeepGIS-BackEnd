@@ -32,3 +32,7 @@ class DeleteFeatureStoreException(BaseGeoserverException):
 
 class DeleteLayerException(BaseGeoserverException):
     pass
+
+
+class NotExistStore(Exception):
+    pass

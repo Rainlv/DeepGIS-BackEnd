@@ -5,8 +5,8 @@ from starlette.responses import FileResponse
 
 from Schemas.Geoserver import CreateTable
 from Schemas.Response import BaseResponse
-from utils.constant.geo import LayerType, StoreType
-from utils.geoserver import get_raster_path, UserStoreInfo
+from utils.constant.geo import LayerType, StoreType, StoreDBMap
+from utils.geoserver import get_user_raster_path, UserStoreInfo
 from views.map.db import create_geo_table, upload2postGIS, download_from_postGIS, delete_feature_asset, RasterPostGIS
 from sqlalchemy import Column
 import sqlalchemy
@@ -48,7 +48,7 @@ async def _(user: User = Depends(current_user())):
     user_ws = store_info.get_ws_name()
     # user_feature = get_user_ws_name(user_name, layer_type=LayerType.FEATURE)
     # user_raster = get_user_ws_name(user_name, layer_type=LayerType.RASTER)
-    public_raster = 'nurc'
+    public_raster = StoreDBMap[StoreType.Public]
     public_feature = 'tiger'
     user_feature_result = await geoserver_instance.get_ws_features(ws=user_ws)
     user_raster_result = await geoserver_instance.get_ws_rasters(ws=user_ws)
@@ -146,6 +146,6 @@ async def _(file: UploadFile = File(...), user: User = Depends(current_user())):
 async def _(raster_name: str, file_type: str = None, store_type: StoreType = StoreType.Private,
             user: User = Depends(current_user())):
     user_name = user.nick_name
-    asset_dir = get_raster_path(user_name)
+    asset_dir = get_user_raster_path(user_name)
     file_path = Path(asset_dir).joinpath(raster_name)
     return FileResponse(path=file_path)
