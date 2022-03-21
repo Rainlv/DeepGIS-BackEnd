@@ -6,7 +6,7 @@
  @Author    :Xuanh.W
  @Usage     :
 """
-from typing import List, Optional
+from typing import List
 
 import httpx
 from geo.Geoserver import Geoserver
@@ -27,20 +27,34 @@ class GeoServerClass(metaclass=Singleton):
         self.client = httpx.AsyncClient(headers={'Accept': "application/json"},
                                         auth=(globalConfig.geoserver_user, globalConfig.geoserver_passwd))
 
-    def create_workspace(self, ws: str):
-        try:
-            exc_info = self.geo.create_workspace(ws)
-            if exc_info.startswith("Error: "):
-                raise CreateWorkspaceException(exc_info)
-            logger.info(f'{ws}工作空间创建成功')
-        except Exception as e:
-            raise CreateWorkspaceException(f"创建工作区{ws}失败！" + str(e))
+    async def create_workspace(self, ws: str, exist_ok: bool = False):
+        url = "{}/workspaces".format(self.base_url)
+        data = "<workspace><name>{}</name></workspace>".format(ws)
+        headers = {"content-type": "text/xml"}
+        r: Response = await self.client.post(url=url, data=data,
+                                             auth=(globalConfig.geoserver_user, globalConfig.geoserver_passwd),
+                                             headers=headers)
 
-    def create_feature_store(self, feature_store: str, ws: str):
+        if r.status_code == 201:
+            logger.info(f"workspace `{ws}` has been created")
+            return True
+
+        elif r.status_code == 409:
+            msg = f"workspace `{ws}` already exists"
+            if exist_ok:
+                logger.warning(msg)
+            else:
+                raise WsExistException(msg)
+
+        else:
+            raise CreateWorkspaceException(f"The workspace can not be created, {r.content}")
+
+    def create_feature_store(self, feature_store: str, ws: str, exist_ok: bool = False):
         """
         创建geoserver数据源
-        :param feature_store: 数据源名称（应于用户名相同）
+        :param feature_store: 数据源名称（与用户名相同，与数据库表名相同）
         :param ws: geoserver工作空间
+        :param exist_ok: 已存在处理方式，True忽略，False报错
         :return:
         """
         exc_info = self.geo.create_featurestore(store_name=feature_store,
@@ -51,9 +65,26 @@ class GeoServerClass(metaclass=Singleton):
                                                 pg_user=globalConfig.postgis_db_user,
                                                 pg_password=globalConfig.postgis_db_passwd,
                                                 )
-        if exc_info:
+        if not exc_info:
+            logger.info(f'{ws}:{feature_store}数据源创建成功')
+            return True
+        if exc_info.endswith(f"\"Store 'test' already exists in workspace '{feature_store}'\""):
+            msg = f"数据源{ws}:{feature_store}已存在！"
+            if not exist_ok:
+                raise FeatureStoreExistsException(msg)
+            else:
+                logger.warning(msg)
+        else:
             raise CreateFeatureStoreException(f"创建数据源{ws}:{feature_store}失败！" + str(exc_info))
-        logger.info(f'{ws}:{feature_store}数据源创建成功')
+
+    def if_ws_exist(self, ws: str):
+        """工作空间是否存在"""
+        exc_info = self.geo.get_workspace(ws)
+        return True if exc_info else False
+
+    def if_fs_exist(self, ws: str, fs: str):
+        exc_info = self.geo.get_featurestore(store_name=fs, workspace=ws)
+        return True if not exc_info.startswith("Error:") else False
 
     def pub_feature(self, store_name: str, pg_table: str, ws: str):
         exc_info = self.geo.publish_featurestore(workspace=ws, store_name=store_name,
@@ -166,8 +197,11 @@ class GeoServerClass(metaclass=Singleton):
 
 
 geoserver = GeoServerClass()
+
 if __name__ == '__main__':
     import asyncio
+
+    print(geoserver.create_feature_store(ws='public', feature_store='222'))
     # user_name = "cite1_feature"
     # geoserver.delete_workspace(user_name)
-    print(asyncio.run(geoserver.get_ws_rasters('foo')))
+    # print(asyncio.run(geoserver.create_workspace('test1')))

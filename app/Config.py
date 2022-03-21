@@ -32,13 +32,15 @@ class Config(BaseSettings):
     # 服务器域名/IP
     server_host: str
     # postgis数据库地址
-    postgis_db_host: IPvAnyAddress = IPv4Address("127.0.0.1")  # type: ignore
+    postgis_db_host: str  # type: ignore
     # postgis数据库端口号
     postgis_db_port: int = 5432
     # postgis数据库用户名
     postgis_db_user: str
     # postgis数据库密码
     postgis_db_passwd: str
+    # postgis 默认数据库名(user等元数据库名)
+    POSTGRES_DB: str
 
     # postgis数据库地址
     geoserver_url: AnyHttpUrl

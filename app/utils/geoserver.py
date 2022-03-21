@@ -14,15 +14,18 @@ from utils.constant.geo import StoreType
 
 
 class StoreInfo:
+    PUBLIC_WS = 'public'
+    SHARE_WS = 'share'
     PUBLIC_STORE = {
-        "FEATURE": ["tiger"],
-        "RASTER": ["nurc"],
+        "FEATURE": "public",
+        "RASTER": "",
     }
     SHARE_STORE = {
-        "FEATURE": ["share"],
-        "RASTER": ["share"],
+        "FEATURE": "share",
+        "RASTER": "",
     }
-
+    PUBLIC_DB = 'public'
+    SHARE_DB = 'share'
     def __init__(self, store_type: StoreType):
         self.store_type = store_type
 
@@ -36,9 +39,9 @@ class StoreInfo:
         """
         if user_name and ws_name == user_name:
             return StoreType.Private
-        elif (ws_name in StoreInfo.PUBLIC_STORE["FEATURE"]) or (ws_name in StoreInfo.PUBLIC_STORE["RASTER"]):
+        elif (ws_name == StoreInfo.PUBLIC_STORE["FEATURE"]) or (ws_name == StoreInfo.PUBLIC_STORE["RASTER"]):
             return StoreType.Public
-        elif (ws_name in StoreInfo.SHARE_STORE["FEATURE"]) or (ws_name in StoreInfo.SHARE_STORE["RASTER"]):
+        elif (ws_name == StoreInfo.SHARE_STORE["FEATURE"]) or (ws_name == StoreInfo.SHARE_STORE["RASTER"]):
             return StoreType.Share
         else:
             raise NotExistStore

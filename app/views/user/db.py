@@ -8,8 +8,9 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, String
 from database.utils.conn import get_db_uri
 from views.user.models import UserDB
+from Config import globalConfig
 
-DATABASE_URL = get_db_uri(db_name='user', is_async=True)
+DATABASE_URL = get_db_uri(db_name=globalConfig.POSTGRES_DB, is_async=True)
 Base: DeclarativeMeta = declarative_base()
 
 

@@ -5,8 +5,8 @@ from starlette.responses import FileResponse
 
 from Schemas.Geoserver import CreateTable
 from Schemas.Response import BaseResponse
-from utils.constant.geo import LayerType, StoreType, StoreDBMap
-from utils.geoserver import get_user_raster_path, UserStoreInfo
+from utils.constant.geo import LayerType, StoreType
+from utils.geoserver import get_user_raster_path, UserStoreInfo, StoreInfo
 from views.map.db import create_geo_table, upload2postGIS, download_from_postGIS, delete_feature_asset, RasterPostGIS
 from sqlalchemy import Column
 import sqlalchemy
@@ -46,16 +46,14 @@ async def _(user: User = Depends(current_user())):
     user_name = user.nick_name
     store_info = UserStoreInfo(user_name)
     user_ws = store_info.get_ws_name()
-    # user_feature = get_user_ws_name(user_name, layer_type=LayerType.FEATURE)
-    # user_raster = get_user_ws_name(user_name, layer_type=LayerType.RASTER)
-    public_raster = StoreDBMap[StoreType.Public]
-    public_feature = 'tiger'
+    public_ws = StoreInfo.PUBLIC_WS
+    share_ws = StoreInfo.SHARE_WS
     user_feature_result = await geoserver_instance.get_ws_features(ws=user_ws)
     user_raster_result = await geoserver_instance.get_ws_rasters(ws=user_ws)
-    public_feature_result = await geoserver_instance.get_ws_features(ws=public_feature)
-    public_raster_result = await geoserver_instance.get_ws_rasters(ws=public_raster)
-    share_feature_result = await geoserver_instance.get_ws_features(ws='share')
-    share_raster_result = await geoserver_instance.get_ws_rasters(ws='share')
+    public_feature_result = await geoserver_instance.get_ws_features(ws=public_ws)
+    public_raster_result = await geoserver_instance.get_ws_rasters(ws=public_ws)
+    share_feature_result = await geoserver_instance.get_ws_features(ws=share_ws)
+    share_raster_result = await geoserver_instance.get_ws_rasters(ws=share_ws)
     return BaseResponse(
         code=0,
         message='',
@@ -79,13 +77,13 @@ async def _(user: User = Depends(current_user())):
                  {
                      "id": "public_feature", "label": "矢量数据",
                      "children": [
-                         {"id": f"{public_feature}:{feature_name}",
+                         {"id": f"{public_ws}:{feature_name}",
                           "label": feature_name, "type": "feature"}
                          for feature_name in public_feature_result]},
                  {
                      "id": "public_raster", "label": "栅格数据",
                      "children": [
-                         {"id": f"{public_raster}:{raster_name}", "label": raster_name, "type": "raster"}
+                         {"id": f"{share_ws}:{raster_name}", "label": raster_name, "type": "raster"}
                          for raster_name in public_raster_result]},
              ]},
             {"id": "share", "label": "共享资源",

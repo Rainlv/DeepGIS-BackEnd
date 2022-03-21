@@ -42,10 +42,3 @@ class StoreType(str, Enum):
     Private = "private"
     Public = "public"
     Share = "share"
-
-
-StoreDBMap = {
-    StoreType.Private: None,
-    StoreType.Public: 'nurc',
-    StoreType.Share: 'share'
-}

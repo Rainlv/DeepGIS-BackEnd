@@ -6,6 +6,10 @@ class CreateFeatureStoreException(BaseGeoserverException):
     pass
 
 
+class FeatureStoreExistsException(CreateFeatureStoreException):
+    pass
+
+
 class PublishFeatureException(BaseGeoserverException):
     pass
 
@@ -15,6 +19,10 @@ class PublishRasterException(BaseGeoserverException):
 
 
 class CreateWorkspaceException(BaseGeoserverException):
+    pass
+
+
+class WsExistException(CreateWorkspaceException):
     pass
 
 

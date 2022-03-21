@@ -39,7 +39,7 @@ class UserManager(BaseUserManager[UserCreate, UserDB]):
         try:
             create_user_database(db_name)
             # create_user_database(feature_db)
-            geoserver.create_workspace(ws_name)
+            await geoserver.create_workspace(ws_name)
             # geoserver.create_workspace(feature_db)
             geoserver.create_feature_store(feature_store_name, ws=ws_name)
             # geoserver.create_feature_store(feature_db, feature_db)
