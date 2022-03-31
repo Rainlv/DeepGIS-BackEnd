@@ -171,20 +171,50 @@ class GeoServerClass(metaclass=Singleton):
         except Exception as e:
             raise GetInfoException(f"获取{ws}矢量图层失败!错误：{e}")
 
-    def delete_workspace(self, ws: str):
-        exc_info = self.geo.delete_workspace(ws)
-        if exc_info.startswith("Error: "):
-            logger.error(f"删除{ws}工作区失败！错误：{exc_info}")
-            raise DeleteWorkspaceException(exc_info)
+    async def delete_workspace(self, ws: str):
+        payload = {"recurse": "true"}
+        url = "{}/rest/workspaces/{}".format(self.base_url, ws)
+        r: Response = await self.client.delete(url,
+                                               auth=(globalConfig.geoserver_user, globalConfig.geoserver_passwd),
+                                               params=payload)
 
-    def delete_featurestore(self, feature_store: str, ws: str):
-        try:
-            exc_info = self.geo.delete_featurestore(featurestore_name=feature_store, workspace=ws)
-            if exc_info.startswith("Error: "):
-                raise Exception(exc_info)
-        except Exception as e:
-            logger.error(f"删除{ws}工作区的{feature_store}数据源失败！错误：{e}")
-            raise DeleteFeatureStoreException(str(e))
+        if r.status_code == 200:
+            logger.info(f"Workspace `{ws}` has been deleted successfully")
+        elif r.status_code == 404:
+            raise WsNotExistsException(f"Can't delete workspace `{ws}`, do not exists!")
+        else:
+            raise DeleteWorkspaceException(f"Can't delete workspace `{ws}`, {r.status_code}")
+
+    async def delete_ws_if_exists(self, ws: str):
+        if not self.if_ws_exist(ws=ws):
+            logger.warning(f"`{ws}` do not exists, skip deleting")
+            return False
+        else:
+            await self.delete_workspace(ws)
+            return True
+
+    async def delete_featurestore(self, feature_store: str, ws: str):
+        payload = {"recurse": "true"}
+        url = "{}/rest/workspaces/{}/datastores/{}".format(
+            self.base_url, ws, feature_store
+        )
+        r: Response = await self.client.delete(
+            url, auth=(globalConfig.geoserver_user, globalConfig.geoserver_passwd), params=payload
+        )
+        if r.status_code == 200:
+            logger.info(f"删除{ws}:{feature_store}成功")
+
+        elif r.status_code == 404:
+            raise NotExistStore(f"删除{ws}:{feature_store}失败, 该数据源不存在")
+        else:
+            raise DeleteFeatureStoreException(f"删除{ws}:{feature_store}失败")
+
+    async def delete_fs_if_exists(self, fs: str, ws: str):
+        if not self.if_fs_exist(ws=ws, fs=fs):
+            logger.warning(f"`{ws}:{fs}`do not exists, skip deleting")
+        else:
+            await self.delete_featurestore(feature_store=fs, ws=ws)
+            return True
 
     def delete_layer(self, layer_name: str, ws: str):
         try:
@@ -201,7 +231,7 @@ geoserver = GeoServerClass()
 if __name__ == '__main__':
     import asyncio
 
-    print(geoserver.create_feature_store(ws='public', feature_store='222'))
+    print(geoserver.delete_featurestore(ws='public', feature_store="test"))
     # user_name = "cite1_feature"
     # geoserver.delete_workspace(user_name)
-    # print(asyncio.run(geoserver.create_workspace('test1')))
+    # print(asyncio.run(geoserver.delete_ws_if_exists('test1')))

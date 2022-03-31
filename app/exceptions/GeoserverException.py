@@ -33,6 +33,9 @@ class GetInfoException(BaseGeoserverException):
 class DeleteWorkspaceException(BaseGeoserverException):
     pass
 
+class WsNotExistsException(DeleteWorkspaceException):
+    pass
+
 
 class DeleteFeatureStoreException(BaseGeoserverException):
     pass

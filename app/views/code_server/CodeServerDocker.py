@@ -16,8 +16,8 @@ container_name_prefix = "code-server_"
 
 class CodeServerDocker(metaclass=Singleton):
     def __init__(self):
-        self.client = docker.DockerClient(base_url=globalConfig.DOCKER_BASE_URL, version='auto')
-
+        # self.client = docker.DockerClient(base_url=globalConfig.DOCKER_BASE_URL, version='auto')
+        self.client = docker.from_env()
     def create_code_server(self, user_name: str):
         code_server_volumes_dir = Path(globalConfig.DOCKER_CODE_SERVER_DIR).joinpath(user_name)
         code_server_passwd = "wxh172706002"

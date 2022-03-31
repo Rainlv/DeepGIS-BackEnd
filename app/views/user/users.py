@@ -30,19 +30,14 @@ class UserManager(BaseUserManager[UserCreate, UserDB]):
 
     # TODO 优化回滚
     async def on_after_register(self, user: UserDB, request: Optional[Request] = None):
-        # raster_db = get_user_ws_name(user.nick_name, layer_type=LayerType.RASTER)
-        # feature_db = get_user_ws_name(user.nick_name, layer_type=LayerType.FEATURE)
         store_info = UserStoreInfo(user.nick_name)
         db_name = store_info.get_db_name()
         ws_name = store_info.get_ws_name()
         feature_store_name = store_info.get_feature_store_name()
         try:
             create_user_database(db_name)
-            # create_user_database(feature_db)
             await geoserver.create_workspace(ws_name)
-            # geoserver.create_workspace(feature_db)
             geoserver.create_feature_store(feature_store_name, ws=ws_name)
-            # geoserver.create_feature_store(feature_db, feature_db)
             logger.info(f"User {user.id} has registered.")
 
         except DatabaseCreateException:
@@ -51,13 +46,11 @@ class UserManager(BaseUserManager[UserCreate, UserDB]):
         except BaseGeoserverException:
             try:
                 await self.delete(user)
-                geoserver.delete_workspace(ws_name)
-                # geoserver.delete_workspace(feature_db)
-                geoserver.delete_featurestore(feature_store_name, ws_name)
-                # geoserver.delete_featurestore(feature_db, feature_db)
-            except:
-                pass
-            raise
+                await geoserver.delete_ws_if_exists(ws_name)
+                await geoserver.delete_fs_if_exists(feature_store_name, ws_name)
+            except Exception as e:
+                logger.error(f"用户创建失败，回滚出错：{e}")
+                raise
 
     async def on_after_forgot_password(
             self, user: UserDB, token: str, request: Optional[Request] = None

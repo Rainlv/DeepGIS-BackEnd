@@ -49,7 +49,6 @@ class Config(BaseSettings):
     # postgis数据库密码
     geoserver_passwd: str
 
-    DOCKER_BASE_URL: AnyUrl
     DOCKER_CODE_SERVER_DIR: str
 
     # 用户密码加密盐
