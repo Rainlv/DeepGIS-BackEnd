@@ -125,8 +125,6 @@ class RasterPostGIS:
         save_file_path = self.user_assets_path.joinpath(filename)
         async with aiofiles.open(save_file_path, mode='wb') as f:
             await f.write(file_content)
-        # with open(save_file_path, mode='wb') as f:
-        #     f.write(file_content)
         return save_file_path
 
     def _upload2db(self):

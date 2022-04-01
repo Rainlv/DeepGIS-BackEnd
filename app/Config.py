@@ -54,10 +54,8 @@ class Config(BaseSettings):
     # 用户密码加密盐
     USER_PASSWD_SECRET: str
 
-    # 临时文件
-    TMP_DIR: str
     # 用户资源文件夹
-    ASSETS_DIR: str
+    ASSETS_DIR: str = 'assets'
 
     class Config:
         extra = "allow"

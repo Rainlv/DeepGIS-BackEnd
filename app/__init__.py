@@ -35,7 +35,6 @@ app.include_router(coder_router, prefix='/api')
 @app.on_event('startup')
 async def _():
     log_init()
-    os.makedirs(globalConfig.TMP_DIR, exist_ok=True)
     await create_db_and_tables()
     init_database()
     await init_geoserver()
