@@ -6,8 +6,10 @@
  @Author    :Xuanh.W
  @Usage     :
 """
-from typing import List
+from pathlib import Path
+from typing import List, Union, Dict
 
+import aiofiles
 import httpx
 from geo.Geoserver import Geoserver
 from httpx import Response
@@ -25,7 +27,8 @@ class GeoServerClass(metaclass=Singleton):
                              password=globalConfig.geoserver_passwd)
         self.base_url = f"{globalConfig.geoserver_url}/rest"
         self.client = httpx.AsyncClient(headers={'Accept': "application/json"},
-                                        auth=(globalConfig.geoserver_user, globalConfig.geoserver_passwd))
+                                        auth=(globalConfig.geoserver_user, globalConfig.geoserver_passwd),
+                                        timeout=10)
 
     async def create_workspace(self, ws: str, exist_ok: bool = False):
         url = "{}/workspaces".format(self.base_url)
@@ -93,12 +96,34 @@ class GeoServerClass(metaclass=Singleton):
             raise PublishFeatureException(f"发布矢量{ws}:{pg_table}:{store_name}失败！" + exc_info)
         logger.info(f'{ws}:{store_name}:{pg_table}矢量发布成功!')
 
-    def pub_raster(self, path: str, ws: str, **kwargs):
-        exc_info = self.geo.create_coveragestore(path, workspace=ws, **kwargs)
-        if exc_info.startswith("Error: "):
-            logger.error(f"发布{ws}:{path}栅格数据失败！错误信息：{exc_info}")
-            raise PublishRasterException(exc_info)
-        logger.info(f"发布{ws}:{path}栅格数据成功")
+    async def pub_raster(self, file: Union[Path, bytes], ws: str, layer_name: str = "", file_type: str = "GeoTIFF",
+                         content_type: str = 'image/tiff'):
+        if isinstance(file, Path):
+            file = file.read_bytes()
+            if not layer_name:
+                layer_name = file.stem
+        elif isinstance(file, str):
+            file = Path(file).read_bytes()
+            if not layer_name:
+                layer_name = Path(file).stem
+        elif isinstance(file, bytes):
+            assert layer_name, 'layer_name不能为空'
+
+        file_type = file_type.lower()
+
+        url = f"{self.base_url}/workspaces/{ws}/coveragestores/{layer_name}/file.{file_type}?coverageName={layer_name}"
+        headers = {"content-type": content_type}
+        r: Response = await self.client.put(url=url, data=file,
+                                            auth=(globalConfig.geoserver_user, globalConfig.geoserver_passwd),
+                                            headers=headers)
+
+        if r.status_code == 201:
+            logger.info(f"coverage stores `{ws}:{layer_name}` has been created")
+            return True
+
+        else:
+            logger.error(f'cannot create coverage stores `{ws}:{layer_name}`, error: {r.content}')
+            raise PublishRasterException(f"发布栅格{ws}:{layer_name}失败！" + str(r.content))
 
     def get_ws_layers(self, ws: str) -> List:
         """
@@ -124,7 +149,7 @@ class GeoServerClass(metaclass=Singleton):
         """
         return self.geo.get_featuretypes(workspace=ws, store_name=store)
 
-    def get_ws_raster_stores(self, ws: str) -> List:
+    def get_ws_raster_stores(self, ws: str) -> Dict:
         """
         获取工作空间下所有的栅格数据源
         :param ws:
@@ -231,7 +256,6 @@ geoserver = GeoServerClass()
 if __name__ == '__main__':
     import asyncio
 
-    print(geoserver.delete_featurestore(ws='public', feature_store="test"))
     # user_name = "cite1_feature"
     # geoserver.delete_workspace(user_name)
     # print(asyncio.run(geoserver.delete_ws_if_exists('test1')))

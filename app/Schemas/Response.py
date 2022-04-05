@@ -4,6 +4,6 @@ from pydantic import BaseModel
 
 
 class BaseResponse(BaseModel):
-    code: int
+    code: int = 0
     message: str = ''
     result: Optional[List[Dict[str, Any]]] = []

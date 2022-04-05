@@ -145,5 +145,5 @@ async def _(raster_name: str, file_type: str = None, store_type: StoreType = Sto
             user: User = Depends(current_user())):
     user_name = user.nick_name
     asset_dir = get_user_raster_path(user_name)
-    file_path = Path(asset_dir).joinpath(raster_name)
+    file_path = asset_dir / raster_name
     return FileResponse(path=file_path)

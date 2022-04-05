@@ -52,7 +52,7 @@ class Config(BaseSettings):
     DOCKER_CODE_SERVER_DIR: str
 
     # 用户密码加密盐
-    USER_PASSWD_SECRET: str
+    USER_PASSWD_SECRET: str = 'this_is_a_secret'
 
     # 用户资源文件夹
     ASSETS_DIR: str = 'assets'

@@ -26,6 +26,7 @@ class StoreInfo:
     }
     PUBLIC_DB = 'public'
     SHARE_DB = 'share'
+
     def __init__(self, store_type: StoreType):
         self.store_type = store_type
 
@@ -76,6 +77,15 @@ class UserStoreInfo(StoreInfo):
         return self._user_name
 
 
-def get_user_raster_path(user_name):
-    asset_path = Path(rootDir).joinpath(globalConfig.ASSETS_DIR).joinpath(user_name)
-    return str(asset_path)
+def get_user_raster_path(user_name: str) -> Path:
+    """
+    get user raster path by username, if not exist, create it
+    :param user_name: username
+    :return:
+    """
+    if Path(globalConfig.ASSETS_DIR).is_absolute():
+        asset_path = Path(globalConfig.ASSETS_DIR) / user_name
+    else:
+        asset_path = Path(rootDir) / globalConfig.ASSETS_DIR / user_name
+    asset_path.mkdir(parents=True, exist_ok=True)
+    return asset_path
