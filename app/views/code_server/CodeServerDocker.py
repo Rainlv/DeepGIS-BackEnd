@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import docker
@@ -10,7 +11,7 @@ from exceptions.DockerException import NotRunning
 from utils.Singleton import Singleton
 
 
-network_name = "gis301_default"
+network_name = "DeepGIS_default"
 container_name_prefix = "code-server_"
 
 
@@ -20,7 +21,7 @@ class CodeServerDocker(metaclass=Singleton):
         self.client = docker.from_env()
     def create_code_server(self, user_name: str):
         code_server_volumes_dir = Path(globalConfig.DOCKER_CODE_SERVER_DIR).joinpath(user_name)
-        code_server_passwd = "wxh172706002"
+        code_server_passwd = "123456"
         return self.client.containers.run('codercom/code-server',
                                           detach=True,
                                           name=f'{container_name_prefix}{user_name}',
@@ -28,10 +29,8 @@ class CodeServerDocker(metaclass=Singleton):
                                           volumes={
                                               code_server_volumes_dir: {'bind': '/home/coder',
                                                                         'mode': 'rw'}, },
-                                          environment={'PASSWORD': code_server_passwd},
+                                          environment={'PASSWORD': code_server_passwd, 'db_user': os.environ.get('postgis_db_user'), 'db_pass': os.environ.get('postgis_db_passwd')},
                                           ports={'8080/tcp': None},
-                                          # ports={'8080/tcp': '7122/tcp'},
-                                          # restart_policy={"Name": "always", "MaximumRetryCount": 5},
                                           user='root')
 
     def _get_container(self, user_name: str):

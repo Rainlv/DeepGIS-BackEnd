@@ -1,15 +1,7 @@
-# !/usr/bin/env Python3
-# -*- coding:utf-8 -*-
-"""
- @FileName  :geoserver.py
- @Time      :2022/01/24 15:58
- @Author    :Xuanh.W
- @Usage     :
-"""
+from os import PathLike
 from pathlib import Path
 from typing import List, Union, Dict
 
-import aiofiles
 import httpx
 from geo.Geoserver import Geoserver
 from httpx import Response
@@ -96,7 +88,8 @@ class GeoServerClass(metaclass=Singleton):
             raise PublishFeatureException(f"发布矢量{ws}:{pg_table}:{store_name}失败！" + exc_info)
         logger.info(f'{ws}:{store_name}:{pg_table}矢量发布成功!')
 
-    async def pub_raster(self, file: Union[Path, bytes], ws: str, layer_name: str = "", file_type: str = "GeoTIFF",
+    async def pub_raster(self, file: Union[Path, PathLike, bytes], ws: str,  layer_name: str = "",
+                         file_type: str = "GeoTIFF",
                          content_type: str = 'image/tiff'):
         if isinstance(file, Path):
             file = file.read_bytes()
@@ -256,6 +249,9 @@ geoserver = GeoServerClass()
 if __name__ == '__main__':
     import asyncio
 
+    with open(r'D:\OneDrive - webmail.hzau.edu.cn\桌面\tdly_2015.tif', 'rb') as f:
+        fc = f.read()
+    asyncio.run(geoserver.pub_raster(file=fc, layer_name="test_mos", ws="foo"))
     # user_name = "cite1_feature"
     # geoserver.delete_workspace(user_name)
     # print(asyncio.run(geoserver.delete_ws_if_exists('test1')))

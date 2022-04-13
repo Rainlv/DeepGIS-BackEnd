@@ -1,19 +1,14 @@
-from pathlib import Path
-
-from fastapi import APIRouter, Depends, File, UploadFile, Query, HTTPException
-from starlette.responses import FileResponse
+from fastapi import APIRouter, Depends, File, UploadFile
 
 from Schemas.Geoserver import CreateTable
 from Schemas.Response import BaseResponse
-from utils.constant.geo import LayerType, StoreType
-from utils.geoserver import get_user_raster_path, UserStoreInfo, StoreInfo
-from views.map.db import create_geo_table, upload2postGIS, download_from_postGIS, delete_feature_asset, RasterPostGIS
+from utils.geoserver import UserStoreInfo, StoreInfo
+from views.map.db import create_geo_table, upload2postGIS, delete_feature_asset, RasterGeo
 from sqlalchemy import Column
 import sqlalchemy
 from views.map.geoserver import geoserver as geoserver_instance
 from views.user.models import User
 from views.user.users import current_user
-from fastapi.responses import StreamingResponse
 
 router = APIRouter(tags=['geoserver'], prefix="/geoserver")
 
@@ -113,20 +108,8 @@ async def _(file: UploadFile = File(...), user: User = Depends(current_user())):
     )
 
 
-# TODO: 公共数据库和共享库支持，多文件类型支持
-@router.get('/download_features')
-async def _(feature_name: str, store_type: StoreType = StoreType.Private,
-            user: User = Depends(current_user())):
-    db_name = UserStoreInfo(user.nick_name).get_db_name()
-    content = download_from_postGIS(feature_name, db_name=db_name, out_file_type='GeoJSON')
-    headers = {"Access-Control-Expose-Headers": "content-disposition",
-               'content-disposition': f'attachment;filename={feature_name}.geojson',
-               "content-type": 'application/octet-stream'}
-    return StreamingResponse(content, headers=headers)
-
-
 @router.delete('/delete_asset')
-async def _(layer_name, layer_type: LayerType, user: User = Depends(current_user())):
+async def _(layer_name, user: User = Depends(current_user())):
     db_name = UserStoreInfo(user.nick_name).get_db_name()
     delete_feature_asset(layer_name, db_name)
     return BaseResponse(code=0, message='')
@@ -134,16 +117,7 @@ async def _(layer_name, layer_type: LayerType, user: User = Depends(current_user
 
 @router.post('/upload_raster')
 async def _(file: UploadFile = File(...), user: User = Depends(current_user())):
-    uploader = RasterPostGIS(user.nick_name)
+    uploader = RasterGeo(user.nick_name)
     file_content = await file.read()
-    await uploader.do_upload(filename=file.filename, file_content=file_content)
-
-
-# TODO: 公共数据库和共享库支持，多文件类型支持
-@router.get('/download_raster')
-async def _(raster_name: str, file_type: str = None, store_type: StoreType = StoreType.Private,
-            user: User = Depends(current_user())):
-    user_name = user.nick_name
-    asset_dir = get_user_raster_path(user_name)
-    file_path = asset_dir / raster_name
-    return FileResponse(path=file_path)
+    await uploader.do_upload(layer_name=file.filename, file_content=file_content)
+    return BaseResponse()

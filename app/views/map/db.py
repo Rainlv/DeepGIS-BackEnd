@@ -105,40 +105,24 @@ def delete_feature_asset(table_name: str, db_name: str):
     geoserver.delete_layer(table_name, ws=db_name)
 
 
-class RasterPostGIS:
+class RasterGeo:
     def __init__(self, user_name):
         self.user_name = user_name
         self.store_info = UserStoreInfo(user_name)
-        db_uri = get_db_uri(db_name=self.store_info.get_db_name(), is_async=True)
-        self.engine = create_async_engine(db_uri)
-        self.user_assets_path = get_user_raster_path(self.user_name)
 
-    async def do_upload(self, filename, file_content):
-        save_path, _ = await self._save2file(filename, file_content)
-        layer_name = Path(filename).stem
+    async def do_upload(self, layer_name, file_content):
+        layer_name = Path(layer_name).stem
         await geoserver.pub_raster(file=file_content, ws=self.store_info.get_ws_name(), layer_name=layer_name)
-
-
-    def do_download(self):
-        pass
-
-    async def _save2file(self, filename: str, file_content: bytes):
-        save_file_path = self.user_assets_path.joinpath(filename)
-        async with aiofiles.open(save_file_path, mode='wb') as f:
-            await f.write(file_content)
-        return save_file_path, file_content
-
-    def _upload2db(self):
-        pass
 
 
 if __name__ == "__main__":
     import asyncio
+
     # with open('example.geojson', 'rb') as r:
     #     upload2postGIS(r, 'test_upload_bytes', 'test_user')
     # with open('t', 'wb') as w:
     # download_from_postGIS(table_name="test_upload_hsg", db_name='test_user', out_file_type='ESRI Shapefile')
     with open(r'D:\OneDrive - webmail.hzau.edu.cn\桌面\tdly_2015.tif', 'rb') as f:
         content = f.read()
-    uploader = RasterPostGIS('foo')
+    uploader = RasterGeo('foo')
     asyncio.run(uploader.do_upload('test1.tif', content))
