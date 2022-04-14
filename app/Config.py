@@ -57,6 +57,9 @@ class Config(BaseSettings):
     # 用户资源文件夹
     ASSETS_DIR: str = 'assets'
 
+    # Code Server Docker网络
+    docker_network:str = 'deepgis_default'
+
     class Config:
         extra = "allow"
         env_file = find_dotenv(".env.prod")

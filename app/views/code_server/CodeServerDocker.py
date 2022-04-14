@@ -11,7 +11,7 @@ from exceptions.DockerException import NotRunning
 from utils.Singleton import Singleton
 
 
-network_name = "DeepGIS_default"
+network_name = globalConfig.docker_network
 container_name_prefix = "code-server_"
 
 
