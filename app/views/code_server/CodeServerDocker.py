@@ -20,7 +20,7 @@ class CodeServerDocker(metaclass=Singleton):
     def create_code_server(self, user_name: str):
         code_server_volumes_dir = Path(globalConfig.DOCKER_CODE_SERVER_DIR).joinpath(user_name)
         code_server_passwd = "123456"
-        return self.client.containers.run('codercom/code-server',
+        return self.client.containers.run('deepgis_codeserver:0.1.2',
                                           detach=True,
                                           name=f'{self.container_name_prefix}{user_name}',
                                           network=self.network_name,
