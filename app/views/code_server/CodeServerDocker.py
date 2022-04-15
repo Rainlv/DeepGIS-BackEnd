@@ -10,31 +10,31 @@ from Config import globalConfig
 from exceptions.DockerException import NotRunning
 from utils.Singleton import Singleton
 
-
-network_name = globalConfig.docker_network
-container_name_prefix = "code-server_"
-
-
 class CodeServerDocker(metaclass=Singleton):
+    network_name = globalConfig.docker_network.lower()
+    container_name_prefix = "code-server_"
+
     def __init__(self):
-        # self.client = docker.DockerClient(base_url=globalConfig.DOCKER_BASE_URL, version='auto')
         self.client = docker.from_env()
+
     def create_code_server(self, user_name: str):
         code_server_volumes_dir = Path(globalConfig.DOCKER_CODE_SERVER_DIR).joinpath(user_name)
         code_server_passwd = "123456"
         return self.client.containers.run('codercom/code-server',
                                           detach=True,
-                                          name=f'{container_name_prefix}{user_name}',
-                                          network=network_name,
+                                          name=f'{self.container_name_prefix}{user_name}',
+                                          network=self.network_name,
                                           volumes={
                                               code_server_volumes_dir: {'bind': '/home/coder',
                                                                         'mode': 'rw'}, },
-                                          environment={'PASSWORD': code_server_passwd, 'db_user': os.environ.get('postgis_db_user'), 'db_pass': os.environ.get('postgis_db_passwd')},
+                                          environment={'PASSWORD': code_server_passwd,
+                                                       'db_user': os.environ.get('postgis_db_user'),
+                                                       'db_pass': os.environ.get('postgis_db_passwd')},
                                           ports={'8080/tcp': None},
                                           user='root')
 
     def _get_container(self, user_name: str):
-        container_name = f"{container_name_prefix}{user_name}"
+        container_name = f"{self.container_name_prefix}{user_name}"
         return self.client.containers.get(container_name)
 
     def get_code_server_url(self, user_name: str):
