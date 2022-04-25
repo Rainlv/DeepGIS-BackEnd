@@ -42,12 +42,14 @@ class Config(BaseSettings):
     # postgis 默认数据库名(user等元数据库名)
     POSTGRES_DB: str
 
-    # postgis数据库地址
+    # geoserver url
     geoserver_url: AnyHttpUrl
-    # postgis数据库用户名
+    # geoserver 用户
     geoserver_user: str
-    # postgis数据库密码
+    # geoserver 密码
     geoserver_passwd: str
+    # geoserver 数据路径
+    geoserver_data_dir: str
 
     DOCKER_CODE_SERVER_DIR: str
 

@@ -30,7 +30,7 @@ class CodeServerDocker(metaclass=Singleton):
                                               code_server_volumes_dir: {'bind': '/home/coder',
                                                                         'mode': 'rw'},
                                               asset_dirs: {'bind': '/home/coder/assets',
-                                                           "mode": "r"}
+                                                           "mode": "ro"}
                                           },
                                           environment={'PASSWORD': code_server_passwd,
                                                        'db_user': os.environ.get('postgis_db_user'),
