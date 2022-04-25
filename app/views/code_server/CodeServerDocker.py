@@ -10,6 +10,7 @@ from Config import globalConfig
 from exceptions.DockerException import NotRunning
 from utils.Singleton import Singleton
 
+
 class CodeServerDocker(metaclass=Singleton):
     network_name = globalConfig.docker_network.lower()
     container_name_prefix = "code-server_"
@@ -18,7 +19,8 @@ class CodeServerDocker(metaclass=Singleton):
         self.client = docker.from_env()
 
     def create_code_server(self, user_name: str):
-        code_server_volumes_dir = Path(globalConfig.DOCKER_CODE_SERVER_DIR).joinpath(user_name)
+        code_server_volumes_dir = Path(globalConfig.DOCKER_CODE_SERVER_DIR) / user_name
+        asset_dirs = Path(globalConfig.geoserver_data_dir) / "data" / user_name
         code_server_passwd = "123456"
         return self.client.containers.run('deepgis_codeserver:0.1.2',
                                           detach=True,
@@ -26,7 +28,10 @@ class CodeServerDocker(metaclass=Singleton):
                                           network=self.network_name,
                                           volumes={
                                               code_server_volumes_dir: {'bind': '/home/coder',
-                                                                        'mode': 'rw'}, },
+                                                                        'mode': 'rw'},
+                                              asset_dirs: {'bind': '/home/coder/assets',
+                                                           "mode": "r"}
+                                          },
                                           environment={'PASSWORD': code_server_passwd,
                                                        'db_user': os.environ.get('postgis_db_user'),
                                                        'db_pass': os.environ.get('postgis_db_passwd')},
