@@ -20,6 +20,8 @@ async def init_geoserver():
         await geoserver.create_workspace(ws=share_ws, exist_ok=True)
         geoserver.create_feature_store(feature_store=share_fs, ws=share_ws, exist_ok=True)
 
+    geoserver.init_permission("*.*.w", "*")
+    geoserver.init_permission("*.*.r", "*")
 
 def init_database():
     def create_db_if_not_exists(db_name):

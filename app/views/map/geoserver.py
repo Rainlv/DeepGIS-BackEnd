@@ -88,7 +88,7 @@ class GeoServerClass(metaclass=Singleton):
             raise PublishFeatureException(f"发布矢量{ws}:{pg_table}:{store_name}失败！" + exc_info)
         logger.info(f'{ws}:{store_name}:{pg_table}矢量发布成功!')
 
-    async def pub_raster(self, file: Union[Path, PathLike, bytes], ws: str,  layer_name: str = "",
+    async def pub_raster(self, file: Union[Path, PathLike, bytes], ws: str, layer_name: str = "",
                          file_type: str = "GeoTIFF",
                          content_type: str = 'image/tiff'):
         if isinstance(file, Path):
@@ -243,15 +243,29 @@ class GeoServerClass(metaclass=Singleton):
             logger.error(f"删除{ws}工作区的{layer_name}图层失败！错误：{e}")
             raise DeleteLayerException(str(e))
 
+    async def init_permission(self, permission_item, permit):
+        url = "{}/security/acl/layers".format(self.base_url)
+        headers = {"content-type": "text/json"}
+        data = f'{{"{permission_item}": "{permit}"}}'
+        r: Response = await self.client.put(url=url, data=data,
+                                            auth=(globalConfig.geoserver_user, globalConfig.geoserver_passwd),
+                                            headers=headers)
+
+        if r.status_code == 200:
+            logger.info(f"permission `{permission_item}` has been changed to `{permit}`")
+            return True
+
+        elif r.status_code == 409:
+            msg = f"Attempting to modify a non-existent rule: `{permission_item}`."
+            logger.warning(msg)
+            raise PermissionChangeException(msg)
+
+        else:
+            raise PermissionChangeException(f"The `{permission_item}` can not be modified, {r.content}")
+
 
 geoserver = GeoServerClass()
 
 if __name__ == '__main__':
     import asyncio
-
-    with open(r'D:\OneDrive - webmail.hzau.edu.cn\桌面\tdly_2015.tif', 'rb') as f:
-        fc = f.read()
-    asyncio.run(geoserver.pub_raster(file=fc, layer_name="test_mos", ws="foo"))
-    # user_name = "cite1_feature"
-    # geoserver.delete_workspace(user_name)
-    # print(asyncio.run(geoserver.delete_ws_if_exists('test1')))
+    asyncio.run(geoserver.init_permission("*.*.w", "*"))
